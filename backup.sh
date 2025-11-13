@@ -54,7 +54,7 @@ if [ -n "$ALERT_TO" ] && [ -n "$SMTP_HOST" ] && [ -n "$SMTP_USER" ] && [ -n "$SM
 
   EMAIL_SUBJECT="$SUBJECT_PREFIX - $SUBJECT_STATUS - $TIMESTAMP"
 
-  # Default from address to user if not set
+  # Default from address to SMTP user if not set
   if [ -z "$ALERT_FROM" ]; then
     ALERT_FROM="$SMTP_USER"
   fi
@@ -67,10 +67,11 @@ if [ -n "$ALERT_TO" ] && [ -n "$SMTP_HOST" ] && [ -n "$SMTP_USER" ] && [ -n "$SM
     -u "$EMAIL_SUBJECT" \
     -m "$BODY_MESSAGE" \
     -s "$SMTP_HOST:$SMTP_PORT" \
-    -o tls=$SMTP_SECURE \
+    -o tls=yes \
     -xu "$SMTP_USER" \
     -xp "$SMTP_PASS" \
-    -a "$LOG_FILE" || echo "[WARN] Failed to send notification email."
+    -a "$LOG_FILE" \
+    || echo "[WARN] Failed to send notification email."
 else
   echo "[INFO] Email notification not configured; skipping email."
 fi
