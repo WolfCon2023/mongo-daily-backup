@@ -12,7 +12,12 @@ RUN apt-get update && \
 
 WORKDIR /app
 
+# Copy script into image
 COPY backup.sh /app/backup.sh
-RUN chmod +x /app/backup.sh
 
-CMD ["/app/backup.sh"]
+# Fix Windows line endings and make it executable
+RUN sed -i 's/\r$//' /app/backup.sh && \
+    chmod +x /app/backup.sh
+
+# Explicitly run with /bin/sh
+CMD ["/bin/sh", "/app/backup.sh"]
