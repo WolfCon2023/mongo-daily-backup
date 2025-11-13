@@ -1,0 +1,4 @@
+# Ignore editor and OS junk
+.DS_Store
+.vscode/
+*.log
