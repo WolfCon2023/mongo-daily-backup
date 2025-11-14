@@ -4,11 +4,8 @@ const path = require('path')
 
 const app = express()
 const PORT = process.env.PORT || 3000
-
-// Path to backup.sh
 const BACKUP_SCRIPT = process.env.BACKUP_SCRIPT_PATH || path.join(__dirname, 'backup.sh')
 
-// Prevent concurrent runs
 let isRunning = false
 
 app.use(express.json())
@@ -28,8 +25,8 @@ app.post('/backup-now', async (req, res) => {
 
   try {
     const child = spawn('sh', [BACKUP_SCRIPT], {
-      env: process.env,   // keep MONGO_URI, ALERT_*, SMTP_*, etc.
-      stdio: 'inherit',   // stream backup.sh logs to container logs
+      env: process.env,
+      stdio: 'inherit',
     })
 
     const finishedAt = await new Promise((resolve, reject) => {
