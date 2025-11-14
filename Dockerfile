@@ -8,6 +8,8 @@ RUN apt-get update && \
       | tee /etc/apt/sources.list.d/mongodb-org-6.0.list && \
     apt-get update && \
     apt-get install -y mongodb-database-tools && \
+    # Install Node.js so we can run a tiny HTTP API
+    apt-get install -y nodejs npm && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -15,8 +17,11 @@ WORKDIR /app
 # Copy backup script
 COPY backup.sh /app/backup.sh
 
+# Copy HTTP server for on-demand backup
+COPY server.js /app/server.js
+
 # Normalize Windows line endings and make executable
 RUN sed -i 's/\r$//' /app/backup.sh && chmod +x /app/backup.sh
 
-# Run the backup script when the container starts
+# Default behavior (used by the cron job service): run backup.sh and exit
 CMD ["/bin/sh", "/app/backup.sh"]
