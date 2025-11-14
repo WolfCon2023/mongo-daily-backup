@@ -1,4 +1,5 @@
 #!/bin/sh
+
 set -e
 
 # Root folder for all backups on the mounted volume
@@ -16,39 +17,47 @@ if [ -z "$MONGO_URI" ]; then
   exit 1
 fi
 
-{
-  echo "============================================="
-  echo "MongoDB Backup Job"
-  echo "Timestamp: $TIMESTAMP"
-  echo "Backup directory: $BACKUP_DIR"
-  echo "============================================="
+# Default job status (will be overridden on success)
+JOB_STATUS="FAILED"
 
-  echo "[INFO] Starting mongodump..."
-  mongodump --uri="$MONGO_URI" --out="$BACKUP_DIR"
-  DUMP_EXIT_CODE=$?
+# Mirror all output to both stdout and the log file
+exec > >(tee "$LOG_FILE") 2>&1
 
-  if [ "$DUMP_EXIT_CODE" -ne 0 ]; then
-    echo "[ERROR] mongodump failed with exit code $DUMP_EXIT_CODE"
-    JOB_STATUS="FAILED"
-  else
-    echo "[INFO] mongodump completed successfully."
-    JOB_STATUS="SUCCESS"
-  fi
+echo "============================================="
+echo "MongoDB Backup Job"
+echo "Timestamp: $TIMESTAMP"
+echo "Backup directory: $BACKUP_DIR"
+echo "============================================="
 
-  echo "[INFO] Cleaning backups older than 7 days..."
-  find "$BACKUP_ROOT" -maxdepth 1 -type d -mtime +7 -exec rm -rf {} \; || true
+echo "[INFO] Starting mongodump..."
 
-  echo "[INFO] Backup job finished with status: $JOB_STATUS"
-} | tee "$LOG_FILE"
+# Temporarily disable 'exit on error' to capture mongodump exit code
+set +e
+mongodump --uri="$MONGO_URI" --out="$BACKUP_DIR"
+DUMP_EXIT_CODE=$?
+set -e
+
+if [ "$DUMP_EXIT_CODE" -ne 0 ]; then
+  echo "[ERROR] mongodump failed with exit code $DUMP_EXIT_CODE"
+  JOB_STATUS="FAILED"
+else
+  echo "[INFO] mongodump completed successfully."
+  JOB_STATUS="SUCCESS"
+fi
+
+echo "[INFO] Cleaning backups older than 7 days..."
+find "$BACKUP_ROOT" -maxdepth 1 -type d -mtime +7 -exec rm -rf {} \; || true
+
+echo "[INFO] Backup job finished with status: $JOB_STATUS"
 
 # If email settings are present, send a notification with the log attached
 if [ -n "$ALERT_TO" ] && [ -n "$SMTP_HOST" ] && [ -n "$SMTP_USER" ] && [ -n "$SMTP_PASS" ]; then
   SUBJECT_PREFIX="MongoDB Backup"
+  SUBJECT_STATUS="$JOB_STATUS"
+
   if [ "$JOB_STATUS" = "SUCCESS" ]; then
-    SUBJECT_STATUS="SUCCESS"
     BODY_MESSAGE="Your scheduled MongoDB backup has completed successfully.\n\nBackup directory: $BACKUP_DIR\nStatus: $JOB_STATUS"
   else
-    SUBJECT_STATUS="FAILED"
     BODY_MESSAGE="Your scheduled MongoDB backup encountered an error.\n\nBackup directory (may be incomplete): $BACKUP_DIR\nStatus: $JOB_STATUS"
   fi
 
